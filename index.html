@@ -1,0 +1,455 @@
+오전 10:45 2026-03-08<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>중국 화학제품 가격 입력기</title>
+
+    <!-- ✅ Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2em; margin-bottom: 10px; }
+        .header p { opacity: 0.9; }
+        .content { padding: 40px; }
+        .date-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .date-section h2 { color: #667eea; margin-bottom: 10px; }
+        .date-display { font-size: 1.5em; color: #333; font-weight: bold; }
+        .product-section {
+            margin-bottom: 30px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 25px;
+            transition: all 0.3s;
+        }
+        .product-section:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+        .product-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .product-icon { font-size: 2em; margin-right: 15px; }
+        .product-info h3 { color: #333; font-size: 1.3em; margin-bottom: 5px; }
+        .product-info .region { color: #666; font-size: 0.9em; }
+        .price-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .input-group { display: flex; flex-direction: column; }
+        .input-group label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+        .input-group input {
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1.1em;
+            transition: border-color 0.3s;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        .exchange-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        .exchange-section h3 { color: #667eea; margin-bottom: 15px; font-size: 1.2em; }
+        .button-group { display: flex; gap: 15px; margin-top: 30px; }
+        .btn {
+            flex: 1;
+            padding: 18px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* 상태 메시지 */
+        .status-box {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-top: 25px;
+            font-weight: bold;
+            display: none;
+            font-size: 1.05em;
+        }
+        .status-success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+        .status-error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+        .status-loading {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #856404;
+        }
+
+        /* 최근 기록 테이블 */
+        .history-section {
+            margin-top: 40px;
+        }
+        .history-section h3 { color: #333; margin-bottom: 15px; }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em;
+            overflow-x: auto;
+            display: block;
+        }
+        .history-table th {
+            background: #667eea;
+            color: white;
+            padding: 10px 8px;
+            text-align: center;
+        }
+        .history-table td {
+            padding: 9px 8px;
+            border-bottom: 1px solid #e0e0e0;
+            text-align: center;
+        }
+        .history-table tr:hover { background: #f8f9ff; }
+
+        .instructions {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .instructions h3 { color: #1976d2; margin-bottom: 10px; }
+        .instructions ol { margin-left: 20px; color: #333; }
+        .instructions li { margin-bottom: 8px; }
+
+        @media (max-width: 768px) {
+            .price-inputs { grid-template-columns: 1fr; }
+            .button-group { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🧪 중국 화학제품 가격 입력기</h1>
+        <p>가격을 입력하면 Supabase DB에 자동 저장됩니다</p>
+    </div>
+
+    <div class="content">
+        <div class="instructions">
+            <h3>📚 사용 방법</h3>
+            <ol>
+                <li><a href="https://ochem.sci99.com" target="_blank" style="color:#2196f3;">중국 웹사이트</a>에서 각 제품의 가격을 확인하세요</li>
+                <li>아래 양식에 가격을 입력하세요</li>
+                <li>"저장" 버튼을 클릭하면 Supabase DB에 바로 저장됩니다</li>
+                <li>같은 날 다시 입력하면 기존 데이터가 업데이트됩니다</li>
+            </ol>
+        </div>
+
+        <!-- 날짜 -->
+        <div class="date-section">
+            <h2>📅 입력 날짜</h2>
+            <div class="date-display" id="dateDisplay"></div>
+        </div>
+
+        <!-- 丙烯 Propylene -->
+        <div class="product-section">
+            <div class="product-header">
+                <div class="product-icon">🔷</div>
+                <div class="product-info">
+                    <h3>丙烯 (Propylene)</h3>
+                    <div class="region">지역: 山东 (산동)</div>
+                </div>
+            </div>
+            <div class="price-inputs">
+                <div class="input-group">
+                    <label>최저가 (RMB/MT)</label>
+                    <input type="number" id="pl_min" placeholder="예: 5710">
+                </div>
+                <div class="input-group">
+                    <label>최고가 (RMB/MT)</label>
+                    <input type="number" id="pl_max" placeholder="예: 5750">
+                </div>
+            </div>
+        </div>
+
+        <!-- 辛醇 2-EH -->
+        <div class="product-section">
+            <div class="product-header">
+                <div class="product-icon">🔶</div>
+                <div class="product-info">
+                    <h3>辛醇 (2-EH / 2-Ethylhexanol)</h3>
+                    <div class="region">지역: 山东 (산동)</div>
+                </div>
+            </div>
+            <div class="price-inputs">
+                <div class="input-group">
+                    <label>최저가 (RMB/MT)</label>
+                    <input type="number" id="eh_min" placeholder="예: 6850">
+                </div>
+                <div class="input-group">
+                    <label>최고가 (RMB/MT)</label>
+                    <input type="number" id="eh_max" placeholder="예: 6900">
+                </div>
+            </div>
+        </div>
+
+        <!-- 正丁醇 NBA -->
+        <div class="product-section">
+            <div class="product-header">
+                <div class="product-icon">🔵</div>
+                <div class="product-info">
+                    <h3>正丁醇 (N-Butanol / NBA)</h3>
+                    <div class="region">지역: 山东 (산동)</div>
+                </div>
+            </div>
+            <div class="price-inputs">
+                <div class="input-group">
+                    <label>최저가 (RMB/MT)</label>
+                    <input type="number" id="nba_min" placeholder="예: 5600">
+                </div>
+                <div class="input-group">
+                    <label>최고가 (RMB/MT)</label>
+                    <input type="number" id="nba_max" placeholder="예: 5700">
+                </div>
+            </div>
+        </div>
+
+        <!-- 丁酮 MEK -->
+        <div class="product-section">
+            <div class="product-header">
+                <div class="product-icon">🟣</div>
+                <div class="product-info">
+                    <h3>丁酮 (MEK / Methyl Ethyl Ketone)</h3>
+                    <div class="region">지역: 江苏 (강소)</div>
+                </div>
+            </div>
+            <div class="price-inputs">
+                <div class="input-group">
+                    <label>최저가 (RMB/MT)</label>
+                    <input type="number" id="mek_min" placeholder="예: 6200">
+                </div>
+                <div class="input-group">
+                    <label>최고가 (RMB/MT)</label>
+                    <input type="number" id="mek_max" placeholder="예: 6270">
+                </div>
+            </div>
+        </div>
+
+        <!-- 醋酸乙酯 EA -->
+        <div class="product-section">
+            <div class="product-header">
+                <div class="product-icon">🟢</div>
+                <div class="product-info">
+                    <h3>醋酸乙酯 (EA / Ethyl Acetate)</h3>
+                    <div class="region">지역: 江苏 (강소)</div>
+                </div>
+            </div>
+            <div class="price-inputs">
+                <div class="input-group">
+                    <label>최저가 (RMB/MT)</label>
+                    <input type="number" id="ea_min" placeholder="예: 5040">
+                </div>
+                <div class="input-group">
+                    <label>최고가 (RMB/MT)</label>
+                    <input type="number" id="ea_max" placeholder="예: 5090">
+                </div>
+            </div>
+        </div>
+
+        <!-- 환율 -->
+        <div class="exchange-section">
+            <h3>💱 환율 (RMB/USD)</h3>
+            <div class="input-group">
+                <input type="number" step="0.0001" id="exchange_rate" placeholder="예: 6.9700" style="font-size:1.2em;">
+            </div>
+        </div>
+
+        <!-- 버튼 -->
+        <div class="button-group">
+            <button class="btn btn-primary" id="saveBtn" onclick="saveToSupabase()">💾 Supabase에 저장</button>
+            <button class="btn btn-secondary" onclick="resetForm()">🔄 초기화</button>
+        </div>
+
+        <!-- 상태 메시지 -->
+        <div class="status-box" id="statusBox"></div>
+
+        <!-- 최근 기록 -->
+        <div class="history-section">
+            <h3>📋 최근 저장 기록 (최신 10건)</h3>
+            <div id="historyTableWrapper">불러오는 중...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ============================================================
+    // ✏️  여기만 수정하세요 (메모장에서 수정할 부분)
+    // ============================================================
+    const SUPABASE_URL  = 'https://bpchwobwwkplmrfmpesm.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwY2h3b2J3d2twbG1yZm1wZXNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwNTc3MjQsImV4cCI6MjA4NzYzMzcyNH0.Ox73ZTcpl_yT4UrZEI1PooBfrx_8MVXaZkuv5lOrdTk';
+    // ============================================================
+
+    const { createClient } = supabase;
+    const db = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    // 날짜 표시
+    function getToday() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function displayDate() {
+        const options = { year:'numeric', month:'long', day:'numeric', weekday:'long' };
+        document.getElementById('dateDisplay').textContent =
+            new Date().toLocaleDateString('ko-KR', options);
+    }
+
+    // 상태 메시지
+    function showStatus(type, msg) {
+        const box = document.getElementById('statusBox');
+        box.className = `status-box status-${type}`;
+        box.textContent = msg;
+        box.style.display = 'block';
+    }
+
+    // Supabase 저장 (upsert: 같은 날짜면 업데이트)
+    async function saveToSupabase() {
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = true;
+        showStatus('loading', '⏳ 저장 중...');
+
+        const payload = {
+            date:          getToday(),
+            pl_min:        parseFloat(document.getElementById('pl_min').value)   || null,
+            pl_max:        parseFloat(document.getElementById('pl_max').value)   || null,
+            eh_min:        parseFloat(document.getElementById('eh_min').value)   || null,
+            eh_max:        parseFloat(document.getElementById('eh_max').value)   || null,
+            nba_min:       parseFloat(document.getElementById('nba_min').value)  || null,
+            nba_max:       parseFloat(document.getElementById('nba_max').value)  || null,
+            mek_min:       parseFloat(document.getElementById('mek_min').value)  || null,
+            mek_max:       parseFloat(document.getElementById('mek_max').value)  || null,
+            ea_min:        parseFloat(document.getElementById('ea_min').value)   || null,
+            ea_max:        parseFloat(document.getElementById('ea_max').value)   || null,
+            exchange_rate: parseFloat(document.getElementById('exchange_rate').value) || null,
+        };
+
+        const { error } = await db
+            .from('chemical_prices')
+            .upsert(payload, { onConflict: 'date' });
+
+        btn.disabled = false;
+
+        if (error) {
+            console.error(error);
+            showStatus('error', `❌ 저장 실패: ${error.message}`);
+        } else {
+            showStatus('success', `✅ ${payload.date} 데이터가 저장되었습니다!`);
+            loadHistory();
+        }
+    }
+
+    // 최근 기록 불러오기
+    async function loadHistory() {
+        const { data, error } = await db
+            .from('chemical_prices')
+            .select('*')
+            .order('date', { ascending: false })
+            .limit(10);
+
+        const wrapper = document.getElementById('historyTableWrapper');
+
+        if (error || !data || data.length === 0) {
+            wrapper.innerHTML = '<p style="color:#999;">저장된 데이터가 없습니다.</p>';
+            return;
+        }
+
+        const cols = ['date','pl_min','pl_max','eh_min','eh_max','nba_min','nba_max','mek_min','mek_max','ea_min','ea_max','exchange_rate'];
+        const headers = ['날짜','PL최저','PL최고','2EH최저','2EH최고','NBA최저','NBA최고','MEK최저','MEK최고','EA최저','EA최고','환율'];
+
+        let html = `<table class="history-table"><thead><tr>`;
+        headers.forEach(h => html += `<th>${h}</th>`);
+        html += `</tr></thead><tbody>`;
+
+        data.forEach(row => {
+            html += '<tr>';
+            cols.forEach(c => html += `<td>${row[c] ?? '-'}</td>`);
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        wrapper.innerHTML = html;
+    }
+
+    // 초기화
+    function resetForm() {
+        if (confirm('입력한 데이터를 모두 지우시겠습니까?')) {
+            document.querySelectorAll('input[type="number"]').forEach(i => i.value = '');
+            document.getElementById('statusBox').style.display = 'none';
+        }
+    }
+
+    // 시작
+    window.addEventListener('load', () => {
+        displayDate();
+        loadHistory();
+    });
+</script>
+</body>
+</html>
